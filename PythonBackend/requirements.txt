@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+chromadb
+sentence-transformers
+tqdm
+python-dotenv
+httpx

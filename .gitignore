@@ -1,0 +1,102 @@
+# ============================
+# UNITY
+# ============================
+.utmp/
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+*.log
+
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# /[Aa]ssets/AssetStoreTools*
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+.vs/
+.gradle/
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+sysinfo.txt
+
+*.apk
+*.aab
+*.unitypackage
+*.unitypackage.meta
+*.app
+
+crashlytics-build.properties
+
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# ============================
+# PYTHON BACKEND (PyCharm)
+# ============================
+/PythonBackend/__pycache__/
+/PythonBackend/*.py[cod]
+/PythonBackend/*.pyo
+/PythonBackend/*.pyd
+
+# PyCharm / IntelliJ
+/PythonBackend/.idea/
+/PythonBackend/.vscode/
+/PythonBackend/.ropeproject/
+
+# Virtual environments
+/PythonBackend/.venv/
+/PythonBackend/venv/
+/PythonBackend/env/
+/PythonBackend/.env
+
+# Distribution / packaging
+/PythonBackend/build/
+/PythonBackend/dist/
+/PythonBackend/*.egg-info/
+/PythonBackend/*.egg
+
+# Test / coverage
+/PythonBackend/.pytest_cache/
+/PythonBackend/.coverage
+/PythonBackend/chroma_frw
+/PythonBackend/.coverage.*
+/PythonBackend/htmlcov/
+/PythonBackend/.mypy_cache/
+/PythonBackend/.tox/
+/PythonBackend/.nox/
+/PythonBackend/coverage.xml
+/PythonBackend/test-results/
+
+# Logs
+/PythonBackend/*.log
+
+# Jupyter
+/PythonBackend/.ipynb_checkpoints
+
+# PyInstaller
+/PythonBackend/*.manifest
+/PythonBackend/*.spec
