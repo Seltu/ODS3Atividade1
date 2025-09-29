@@ -21,7 +21,7 @@ INDEX_DIR      = os.getenv("INDEX_DIR", "./chroma_frw")
 EMBED_MODEL    = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 EMBED_DEVICE   = os.getenv("EMBED_DEVICE", "cpu")  # "cuda" se disponível
 
-OLLAMA_URL     = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_URL     = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
 LLM_MODEL      = os.getenv("LLM_MODEL", "mistral")
 MAX_TOKENS_OUT = int(os.getenv("MAX_TOKENS", "448"))  # mais espaço para 2–3 parágrafos
 KEEP_ALIVE     = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
@@ -423,31 +423,35 @@ def ask(body: Ask):
 
     payload = {
         "model": LLM_MODEL,
-        "system": SYSTEM_PROMPT,    # regras imutáveis
-        "prompt": prompt,           # contexto + pergunta
-        "format": "json",          # força JSON
+        "messages": [
+            { "role": "system", "content": SYSTEM_PROMPT },
+            { "role": "user", "content": prompt }
+        ],
         "stream": False,
-        "keep_alive": KEEP_ALIVE,
         "options": {
-            "num_predict": MAX_TOKENS_OUT,
-            "temperature": 0.0,         # determinismo
+            "temperature": 0.0,
             "top_p": 1.0,
             "seed": OLLAMA_SEED,
+            "num_predict": MAX_TOKENS_OUT
         },
     }
 
     r = HttpClient.post(OLLAMA_URL, json=payload)
     r.raise_for_status()
-    raw = r.json()["response"]
+
+    # CORREÇÃO AQUI – para o formato da /api/chat
+    resp_json = r.json()
+    raw = resp_json.get("message", {}).get("content", "")
 
     try:
-        obj = parse_llm_json(raw)  # <— extrai/parseia JSON mesmo com ruído
-        obj = normalize_to_paragraphs(obj)  # <— garante {"paragraphs":[...]}
+        obj = parse_llm_json(raw)
+        obj = normalize_to_paragraphs(obj)
         out = render_answer_from_json(obj, EXPRESSIONS)
     except Exception:
-        out = repair_output(str(raw), EXPRESSIONS)  # fallback texto
+        out = repair_output(str(raw), EXPRESSIONS)
 
     return {"reply": out}
+
 
 @app.post("/ask_stream")
 def ask_stream(body: Ask):
@@ -461,16 +465,16 @@ def ask_stream(body: Ask):
 
     payload = {
         "model": LLM_MODEL,
-        "system": SYSTEM_PROMPT,
-        "prompt": prompt,
-        "format": "json",
-        "stream": True,
-        "keep_alive": KEEP_ALIVE,
+        "messages": [
+            { "role": "system", "content": SYSTEM_PROMPT },
+            { "role": "user", "content": prompt }
+        ],
+        "stream": False,
         "options": {
-            "num_predict": MAX_TOKENS_OUT,
             "temperature": 0.0,
             "top_p": 1.0,
             "seed": OLLAMA_SEED,
+            "num_predict": MAX_TOKENS_OUT
         },
     }
 
@@ -483,7 +487,7 @@ def ask_stream(body: Ask):
             data = json.loads(line)
             # ollama envia chunks de texto do campo 'response'
             if "response" in data:
-                buf.append(data["response"])
+                buf.append(data["response"]["content"])
     raw = "".join(buf)
 
     try:
