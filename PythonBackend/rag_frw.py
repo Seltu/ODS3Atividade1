@@ -13,32 +13,32 @@ from pydantic import BaseModel
 import httpx
 from contextlib import asynccontextmanager
 
-# ========= Config =========
+#  Config 
 load_dotenv()
 
 DATA_FILE      = os.getenv("DATA_FILE", "FRW-J.json")
 INDEX_DIR      = os.getenv("INDEX_DIR", "./chroma_frw")
 EMBED_MODEL    = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-EMBED_DEVICE   = os.getenv("EMBED_DEVICE", "cpu")  # "cuda" se disponível
+EMBED_DEVICE   = os.getenv("EMBED_DEVICE", "cpu")  
 
 OLLAMA_URL     = os.getenv("OLLAMA_URL", "http://localhost:11434/api/chat")
 LLM_MODEL      = os.getenv("LLM_MODEL", "mistral")
-MAX_TOKENS_OUT = int(os.getenv("MAX_TOKENS", "448"))  # mais espaço para 2–3 parágrafos
+MAX_TOKENS_OUT = int(os.getenv("MAX_TOKENS", "448"))  
 KEEP_ALIVE     = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
-OLLAMA_SEED    = int(os.getenv("OLLAMA_SEED", "42"))  # determinismo
+OLLAMA_SEED    = int(os.getenv("OLLAMA_SEED", "42"))  
 
 CHUNK_TOKENS   = int(os.getenv("CHUNK_TOKENS", "700"))
 CHUNK_OVERLAP  = int(os.getenv("CHUNK_OVERLAP", "120"))
-TOP_K_DEFAULT  = int(os.getenv("TOP_K", "3"))  # menos contexto => respostas mais objetivas
+TOP_K_DEFAULT  = int(os.getenv("TOP_K", "3"))  
 
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "frw_lore")
 
-# --- PERSONA + EXPRESSÕES ---
+# PERSONA + EXPRESSÕES
 EXPRESSIONS = [
     "Neutral", "Confident", "Surprised", "Annoyed", "Thoughtful", "Sad"
 ]
 
-# Saída **determinística e estável**: pedimos JSON e depois renderizamos nós mesmos
+# Saída **determinística e estável**: pedimos JSON e depois renderizamos 
 SYSTEM_PROMPT = f"""
 ROLE: You are an elder librarian NPC from the Forgotten Realms, kind and helpful.
 VOICE: First-person, kindly mentor; address the reader as "adventurer" at least once.
@@ -66,7 +66,7 @@ RULES:
 - Return ONLY JSON.
 """
 
-# ========= Utils =========
+# Utils 
 
 def iter_dataset_json(path: str):
     with open(path, "r", encoding="utf-8") as f:
@@ -104,7 +104,7 @@ def make_collection():
         embedding_function=embedder,
     )
 
-# ========= Build Index =========
+# Build Index
 
 def cmd_build_index(data_file: str):
     col = make_collection()
@@ -132,7 +132,7 @@ def cmd_build_index(data_file: str):
     if batch_ids:
         col.add(ids=batch_ids, documents=batch_docs, metadatas=batch_metas)
 
-# ========= Rendering helpers =========
+# Rendering 
 
 # Escolha de pontuação por tag (exclamação p/ emoção)
 TERMINAL_PUNCT_BY_TAG = {
@@ -155,18 +155,17 @@ TERMINAL_PUNCT_BY_TAG = {
 }
 
 def ensure_terminal_punct(txt: str, tag: str) -> str:
-    """
-    Garante pontuação final antes da tag.
-    Se houver aspas/fecha-parênteses no fim, insere a pontuação antes deles.
-    """
+    
+    # Garante pontuação final antes da tag - se houver aspas/fecha-parênteses no fim, insere a pontuação antes deles
+    
     txt = txt.rstrip()
     if not txt:
         return txt
-    # separa sufixos tipo aspas/parênteses
+    # separa sufixos - aspas/parênteses
     m = re.match(r"^(.*?)([\"'’”)\]]+)?\s*$", txt)
     base = m.group(1) if m else txt
     trail = m.group(2) if (m and m.group(2)) else ""
-    # já tem pontuação?
+    # verifica se em pontuacao
     if re.search(r"[.!?…]$", base):
         return base + trail
     p = TERMINAL_PUNCT_BY_TAG.get(tag, ".")
@@ -174,10 +173,9 @@ def ensure_terminal_punct(txt: str, tag: str) -> str:
 
 
 def render_answer_from_json(data: dict, allowed_tags: List[str]) -> str:
-    """
-    Converte o JSON (com 'paragraphs': [{text, tag}, ...]) em texto final.
-    Retorna string com 2–3 parágrafos, cada um terminando em [Tag].
-    """
+    
+    #Converte o JSON em texto final e retorna string com 2–3 parágrafos, cada um terminando em [Tag]
+    
     paras = data.get("paragraphs")
     if not isinstance(paras, list):
         raise ValueError("JSON sem 'paragraphs' lista")
@@ -198,17 +196,17 @@ def render_answer_from_json(data: dict, allowed_tags: List[str]) -> str:
         text = ensure_terminal_punct(text, tag)
         out_parts.append(f"{text} [{tag}]")
 
-    # garantir pelo menos 2
+    # garantir pelo menos 2 paragarfos
     if len(out_parts) == 1:
         out_parts.append("[Neutral]")
 
     return "\n\n".join(out_parts[:3])
 
 def extract_first_json_block(s: str) -> str | None:
-    """Extrai o primeiro objeto/array JSON bem-formado dentro de uma string com ruído."""
+    # Extrai o primeiro objeto/array JSON bem-formado dentro de uma string com ruído
     s = s.strip()
 
-    # 1) Se vier em code fence ```json ... ```
+    # Se vier em code fence ```json ... ```
     m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", s, flags=re.IGNORECASE)
     if m:
         cand = m.group(1).strip()
@@ -218,14 +216,14 @@ def extract_first_json_block(s: str) -> str | None:
         except Exception:
             pass
 
-    # 2) Tenta direto
+    # Tenta direto
     try:
         json.loads(s)
         return s
     except Exception:
         pass
 
-    # 3) Varre do primeiro { ou [
+    # Varre do primeiro { ou [
     start = None
     for i, ch in enumerate(s):
         if ch in "{[":
@@ -258,10 +256,9 @@ def extract_first_json_block(s: str) -> str | None:
                 if (opening == "{" and c != "}") or (opening == "[" and c != "]"):
                     return None
                 if not stack:
-                    # achou fechamento do bloco raiz
                     return s[start : i + 1]
 
-    # 4) fallback: corta no último } ou ]
+    # fallback: corta no último } ou ]
     end = max(s.rfind("}"), s.rfind("]"))
     if end > (start or -1):
         frag = s[start : end + 1]
@@ -274,7 +271,7 @@ def extract_first_json_block(s: str) -> str | None:
 
 
 def parse_llm_json(raw) -> dict | list:
-    """Aceita dict/list já prontos ou string; tenta extrair/parsear JSON robustamente."""
+    # Aceita dict/list já prontos ou string; tenta extrair/parsear JSON
     if isinstance(raw, (dict, list)):
         return raw
     if not isinstance(raw, str):
@@ -286,11 +283,10 @@ def parse_llm_json(raw) -> dict | list:
 
 
 def normalize_to_paragraphs(obj) -> dict:
-    """
-    Converte variações comuns para o esquema canônico:
-      {"paragraphs":[{"text":..., "tag":...}, ...]}
-    """
-    # já no formato
+    
+    # Converte variações comuns para o esquema canônico - {"paragraphs":[{"text":..., "tag":...}, ...]}
+    
+    # Já no formato
     if isinstance(obj, dict) and isinstance(obj.get("paragraphs"), list):
         return obj
 
@@ -299,7 +295,6 @@ def normalize_to_paragraphs(obj) -> dict:
         paras = []
         for s in obj["answer"][:3]:
             t = str(s).strip()
-            # se terminar com [Tag], extrai
             m = re.search(r"\[\s*(\w+)\s*\]\s*$", t)
             tag = "Neutral"
             if m and m.group(1) in EXPRESSIONS:
@@ -308,7 +303,7 @@ def normalize_to_paragraphs(obj) -> dict:
             paras.append({"text": t, "tag": tag})
         return {"paragraphs": paras}
 
-    # lista simples -> cada item vira parágrafo neutro
+    # Lista simples -> cada item vira parágrafo neutro
     if isinstance(obj, list):
         paras = [{"text": str(x).strip(), "tag": "Neutral"} for x in obj[:3]]
         return {"paragraphs": paras}
@@ -332,12 +327,11 @@ def normalize_to_paragraphs(obj) -> dict:
         paras = [{"text": p, "tag": "Neutral"} for p in parts[:3]]
         return {"paragraphs": paras}
 
-    # último recurso
     raise ValueError("Objeto não convertido para esquema 'paragraphs'.")
 
 
 def repair_output(text: str, allowed_tags: List[str]) -> str:
-    """Fallback quando não vier JSON válido: tenta impor 2–3 parágrafos com tag final."""
+    #Fallback quando JSON não é válido - tentar impor 2–3 parágrafos com tag final
     parts = [p.strip() for p in re.split(r"\r?\n\s*\r?\n", text or "") if p.strip()]
     if len(parts) < 2:
         # quebra por sentenças
@@ -370,7 +364,7 @@ def repair_output(text: str, allowed_tags: List[str]) -> str:
 
     return "\n\n".join(cleaned[:3])
 
-# ========= API =========
+# API
 
 HttpClient: httpx.Client | None = None
 Collection = None
@@ -379,11 +373,11 @@ Collection = None
 async def lifespan(app: FastAPI):
     global HttpClient, Collection
     HttpClient = httpx.Client(
-        timeout=httpx.Timeout(  # tempos distintos p/ cada fase
-            connect=5.0,  # abrir conexão
-            read=300.0,  # esperar bytes da resposta (suba p/ 300)
-            write=30.0,  # enviar request
-            pool=90.0  # pegar conns do pool
+        timeout=httpx.Timeout(  
+            connect=5.0,  
+            read=300.0,  
+            write=30.0,  
+            pool=90.0  
         ),
         headers={"Connection": "keep-alive"}
     )
@@ -439,7 +433,6 @@ def ask(body: Ask):
     r = HttpClient.post(OLLAMA_URL, json=payload)
     r.raise_for_status()
 
-    # CORREÇÃO AQUI – para o formato da /api/chat
     resp_json = r.json()
     raw = resp_json.get("message", {}).get("content", "")
 
@@ -500,7 +493,7 @@ def ask_stream(body: Ask):
     return {"reply": out}
 
 
-# ========= CLI =========
+# CLI
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

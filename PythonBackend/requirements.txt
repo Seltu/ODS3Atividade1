@@ -5,3 +5,6 @@ sentence-transformers
 tqdm
 python-dotenv
 httpx
+matplotlib
+seaborn
+pandas
